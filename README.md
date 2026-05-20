@@ -73,14 +73,14 @@ pip install -r python-script/requirements.txt
 
 Run the pipeline activity report:
 ```bash
-python3 python-script/pipeline_activity_report.py -o "https://dev.azure.com/your-org" -p "YOUR_AZURE_DEVOPS_PAT"
+python3 python-script/pipeline_activity_report_v2.py -o "https://dev.azure.com/your-org" -p "YOUR_AZURE_DEVOPS_PAT"
 ```
 
 ### PowerShell Scripts
 
 Run the main assessment script:
 ```powershell
-./pwsh-script/main.ps1 -PAT "YOUR_AZURE_DEVOPS_PAT" -ORGANIZATION_URL "https://dev.azure.com/your-org" -ORGANIZATION_Name "your-org" -CSVFILENAME "assessment_report" -ONPREM $true
+./pwsh-script-v2/main.ps1 -PAT "YOUR_AZURE_DEVOPS_PAT" -ORGANIZATION_URL "https://dev.azure.com/your-org" -ORGANIZATION_Name "your-org" -CSVFILENAME "inventory.csv" -ONPREM $false
 ```
 
 ---
@@ -90,7 +90,7 @@ Run the main assessment script:
 After running all the scripts, move all generated CSV files into the `output` directory for final analysis:
 
 ```bash
-mv pwsh-script/*.csv python-script/*.csv output/
+mv pwsh-script-v2/*.csv python-script/*.csv output/
 ```
 
 All assessment results will now be located in the `output/` folder.
