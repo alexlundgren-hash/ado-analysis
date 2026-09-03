@@ -1,0 +1,4 @@
+organization,custom_url,personal_access_token
+myorg1,,AZDO_PAT_FOR_MYORG1
+myorg2,,AZDO_PAT_FOR_MYORG2
+onprem-team,https://tfs.internal.company.com/tfs/DefaultCollection,AZDO_PAT_FOR_ONPREM_TEAM
