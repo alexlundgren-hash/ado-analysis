@@ -99,7 +99,8 @@ try {
             # ============================================================
             Write-Debug-Log "Collecting repository metrics..."
             $list_repos = .\list-repos.ps1 -PAT $PAT -ORGANIZATION_URL $ORGANIZATION_URL -PROJECT_NAME $project.name
-            $add_project | Add-Member -Name "Repositories" -Type NoteProperty -Value ($list_repos.Count ?? 0)
+            $repoCount = if ($null -eq $list_repos) { 0 } else { $list_repos.Count }
+            $add_project | Add-Member -Name "Repositories" -Type NoteProperty -Value $repoCount
             
             # Export individual repository details
             if ($EXPORT_REPOS -and $list_repos.Count -gt 0) {
