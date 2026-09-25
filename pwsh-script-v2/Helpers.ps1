@@ -63,13 +63,21 @@ function Initialize-Logger {
 function Write-Log {
     <#
     .SYNOPSIS
-        Write log message with timestamp and level
+        Write log message with timestamp and level. Messages below the configured
+        $script:LogLevel (set via Initialize-Logger) are suppressed.
     #>
     param(
         [string]$Message,
         [string]$Level = "INFO",
         [Exception]$Exception = $null
     )
+
+    $levelRank = @{ DEBUG = 0; INFO = 1; WARN = 2; ERROR = 3 }
+    $minRank = if ($levelRank.ContainsKey($script:LogLevel)) { $levelRank[$script:LogLevel] } else { 1 }
+    $msgRank = if ($levelRank.ContainsKey($Level)) { $levelRank[$Level] } else { 1 }
+    if ($msgRank -lt $minRank) {
+        return
+    }
     
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "[$timestamp] [$Level] $Message"
@@ -94,9 +102,7 @@ function Write-Log {
 
 function Write-Debug-Log {
     param([string]$Message)
-    if ($script:LogLevel -in @("DEBUG")) {
-        Write-Log -Message $Message -Level "DEBUG"
-    }
+    Write-Log -Message $Message -Level "DEBUG"
 }
 
 # ============================================================================
@@ -162,20 +168,32 @@ function Invoke-ApiCall {
                 $params["Body"] = $Body
             }
             
-            # Capture response headers for continuation tokens
-            $responseHeaders = $null
-            $response = Invoke-RestMethod @params -ResponseHeadersVariable responseHeaders
-            Write-Debug-Log "Success: Received $($response.value.Count ?? 1) items"
+            # Capture response headers for continuation tokens (Invoke-WebRequest works on both
+            # Windows PowerShell 5.1 and PowerShell 7+, unlike -ResponseHeadersVariable)
+            $webResponse = Invoke-WebRequest @params -UseBasicParsing
+            $responseHeaders = $webResponse.Headers
+            $response = if ($webResponse.Content) { $webResponse.Content | ConvertFrom-Json } else { $null }
+            $itemCount = if ($null -eq $response.value.Count) { 1 } else { $response.value.Count }
+            Write-Debug-Log "Success: Received $itemCount items"
             
             return @{ Body = $response; Headers = $responseHeaders }
         }
-        catch [System.Net.WebException] {
+        catch {
             $lastException = $_
-            try { $statusCode = [int]$_.Exception.Response.StatusCode } catch { $statusCode = $_.Exception.Response.StatusCode }
-            
+            # Extract HTTP status code regardless of exception type: works for both
+            # System.Net.WebException (Windows PowerShell 5.1) and
+            # Microsoft.PowerShell.Commands.HttpResponseException (PowerShell 7+)
+            $statusCode = $null
+            try { $statusCode = [int]$_.Exception.Response.StatusCode } catch { $statusCode = $null }
+
             # Handle 404 gracefully for TFVC or missing endpoints
             if ($statusCode -eq 404 -or $Uri -match '/_apis/tfvc/') {
-                Write-Log "Resource not found or TFVC not enabled (HTTP $statusCode): $Uri" -Level "DEBUG" -Exception $_.Exception
+                if ($Uri -match '/_apis/tfvc/') {
+                    Write-Log "TFVC not used for this project (Git-only): $Uri" -Level "DEBUG"
+                }
+                else {
+                    Write-Log "Resource not found (HTTP 404): $Uri" -Level "DEBUG"
+                }
                 return $null
             }
             
@@ -192,27 +210,6 @@ function Invoke-ApiCall {
                 Write-Log "API Call Failed (HTTP $statusCode): $Uri" -Level "ERROR" -Exception $_.Exception
                 return $null
             }
-        }
-        catch {
-            # Check if this is a 404 or TFVC-related error before logging as ERROR
-            $statusCode = $null
-            $uri = $null
-            try {
-                if ($_.Exception -is [System.Net.WebException]) {
-                    $statusCode = [int]$_.Exception.Response.StatusCode
-                    $uri = $_.Exception.Response.ResponseUri
-                }
-            }
-            catch { }
-            
-            # 404 or TFVC errors are expected, not critical
-            if ($statusCode -eq 404 -or $Uri -match '/_apis/tfvc/') {
-                Write-Log "Resource not found or TFVC not enabled (HTTP $statusCode): $Uri" -Level "DEBUG" -Exception $_.Exception
-                return $null
-            }
-            
-            Write-Log "API Call Failed: $Uri" -Level "ERROR" -Exception $_.Exception
-            return $null
         }
     }
     

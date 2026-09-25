@@ -9,7 +9,7 @@ param(
     [Parameter(Mandatory=$true)][String]$REPO_ID
 )
 
-. .\Helpers.ps1
+. "$PSScriptRoot\Helpers.ps1"
 
 try {
     $header = CreateAuthHeader $PAT

@@ -5,9 +5,7 @@
 param(
     [Parameter(Mandatory=$true)][String]$PAT,
     [Parameter(Mandatory=$true)][String]$ORGANIZATION_URL,
-    [Parameter(Mandatory=$true)][String]$ORGANIZATION_Name,
     [Parameter(Mandatory=$true)][String]$CSVFILENAME,
-    [Boolean]$ONPREM=$false,
     [String]$LOGFILE="",
     [String]$REPO_CSVFILE="",
     [Boolean]$EXPORT_REPOS=$true
@@ -19,11 +17,27 @@ param(
 # INITIALIZATION
 # ============================================================================
 
+function Resolve-ScriptRelativePath {
+    <#
+    .SYNOPSIS
+        Resolves a relative path against the script's own directory ($PSScriptRoot)
+        so output always lands next to the script, regardless of the caller's
+        current working directory. Absolute paths are returned unchanged.
+    #>
+    param([Parameter(Mandatory=$true)][string]$Path)
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return $Path
+    }
+    return Join-Path $PSScriptRoot $Path
+}
+
 try {
     # Initialize logging
     if ([string]::IsNullOrEmpty($LOGFILE)) {
-        $LOGFILE = ".\ado-inventory-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
+        $LOGFILE = "ado-inventory-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
     }
+    $LOGFILE = Resolve-ScriptRelativePath $LOGFILE
     
     Initialize-Logger -LogFile $LOGFILE -LogLevel "INFO"
     Write-Host "========================================" -ForegroundColor Green
@@ -38,15 +52,16 @@ try {
         throw "ORGANIZATION_URL cannot be empty"
     }
     
+    $CSVFILENAME = Resolve-ScriptRelativePath $CSVFILENAME
+    
     # Set default repo CSV path if not specified
     if ([string]::IsNullOrEmpty($REPO_CSVFILE)) {
-        $REPO_CSVFILE = ".\" + [System.IO.Path]::GetFileNameWithoutExtension($CSVFILENAME) + "_repositories.csv"
+        $REPO_CSVFILE = [System.IO.Path]::GetFileNameWithoutExtension($CSVFILENAME) + "_repositories.csv"
     }
+    $REPO_CSVFILE = Resolve-ScriptRelativePath $REPO_CSVFILE
     
     Write-Log "========================================" -Level "INFO"
     Write-Log "Organization: $ORGANIZATION_URL" -Level "INFO"
-    Write-Log "Org Name: $ORGANIZATION_Name" -Level "INFO"
-    Write-Log "On-Prem: $ONPREM" -Level "INFO"
     Write-Log "Output CSV: $CSVFILENAME" -Level "INFO"
     Write-Log "Repository CSV: $REPO_CSVFILE (export enabled: $EXPORT_REPOS)" -Level "INFO"
     Write-Log "========================================" -Level "INFO"

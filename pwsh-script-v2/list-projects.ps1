@@ -8,7 +8,7 @@ param(
     [int]$PageSize = 200
 )
 
-. .\Helpers.ps1
+. "$PSScriptRoot\Helpers.ps1"
 
 try {
     $header = CreateAuthHeader $PAT

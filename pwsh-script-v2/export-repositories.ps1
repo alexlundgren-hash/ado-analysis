@@ -1,36 +1,39 @@
 #
 # export-repositories.ps1 - Export detailed repository inventory for a project
 #
+# Note: the Repositories List API does not support $top/$skip/continuationToken;
+# it always returns the full list of repos in a single response, so no pagination
+# is needed (or possible) here.
 
 param(
     [Parameter(Mandatory=$true)][String]$PAT,
     [Parameter(Mandatory=$true)][String]$ORGANIZATION_URL,
     [Parameter(Mandatory=$true)][String]$PROJECT_NAME,
     [Parameter(Mandatory=$true)][String]$OUTPUT_FILE,
-    [bool]$AppendToExisting = $false,
-    [int]$PageSize = 200
+    [bool]$AppendToExisting = $false
 )
 
-. .\Helpers.ps1
+. "$PSScriptRoot\Helpers.ps1"
 
 try {
     Write-Log "Starting repository inventory export for project: $PROJECT_NAME" -Level "INFO"
     
     $header = CreateAuthHeader $PAT
     
-    # Fetch all repositories with pagination
     $uriApi = "$ORGANIZATION_URL/$PROJECT_NAME/_apis/git/repositories?api-version=7.0"
     
-    $repositories = Invoke-PaginatedApiCall `
+    $resp = Invoke-ApiCall `
         -Uri $uriApi `
+        -Method Get `
         -Headers $header `
-        -PageSize $PageSize `
         -Description "Export repositories for $PROJECT_NAME"
     
-    if ($null -eq $repositories -or $repositories.Count -eq 0) {
+    if ($null -eq $resp -or $null -eq $resp.Body -or $null -eq $resp.Body.value -or $resp.Body.value.Count -eq 0) {
         Write-Log "No repositories found for project $PROJECT_NAME" -Level "WARN"
         return $false
     }
+    
+    $repositories = $resp.Body.value
     
     $repoInventory = @()
     
@@ -53,6 +56,10 @@ try {
                 $latestPush = "No commits"
             }
             
+            # Convert repository size from bytes to megabytes
+            $sizeBytes = Safe-PropertyAccess -Object $repo -PropertyPath "size" -DefaultValue 0
+            $sizeMb = [Math]::Round([double]$sizeBytes / 1MB, 2)
+
             # Build inventory record
             $repoRecord = New-Object PSObject -Property @{
                 ProjectName          = $PROJECT_NAME
@@ -62,10 +69,9 @@ try {
                 DefaultBranch        = Safe-PropertyAccess -Object $repo -PropertyPath "defaultBranch" -DefaultValue "N/A"
                 WebUrl               = Safe-PropertyAccess -Object $repo -PropertyPath "webUrl" -DefaultValue "N/A"
                 RepositoryType       = Safe-PropertyAccess -Object $repo -PropertyPath "repositoryType" -DefaultValue "Git"
-                Size                 = Safe-PropertyAccess -Object $repo -PropertyPath "size" -DefaultValue "0"
+                SizeMB               = $sizeMb
                 IsDisabled           = Safe-PropertyAccess -Object $repo -PropertyPath "isDisabled" -DefaultValue "false"
                 IsFork               = Safe-PropertyAccess -Object $repo -PropertyPath "isFork" -DefaultValue "false"
-                CreatedDate          = Format-DateForCsv (Safe-PropertyAccess -Object $repo -PropertyPath "createdDate")
                 LatestPushDate       = $latestPush
                 ExportDateTime       = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             }

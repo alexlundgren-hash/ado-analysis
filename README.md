@@ -80,7 +80,7 @@ python3 python-script/pipeline_activity_report_v2.py -o "https://dev.azure.com/y
 
 Run the main assessment script:
 ```powershell
-./pwsh-script-v2/main.ps1 -PAT "YOUR_AZURE_DEVOPS_PAT" -ORGANIZATION_URL "https://dev.azure.com/your-org" -ORGANIZATION_Name "your-org" -CSVFILENAME "inventory.csv" -ONPREM $false
+./pwsh-script-v2/main.ps1 -PAT "YOUR_AZURE_DEVOPS_PAT" -ORGANIZATION_URL "https://dev.azure.com/your-org" -CSVFILENAME "inventory.csv"
 ```
 
 ---
