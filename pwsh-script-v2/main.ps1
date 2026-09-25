@@ -13,7 +13,7 @@ param(
     [Boolean]$EXPORT_REPOS=$true
 )
 
-. .\Helpers.ps1
+. "$PSScriptRoot\Helpers.ps1"
 
 # ============================================================================
 # INITIALIZATION
@@ -63,7 +63,7 @@ catch {
 try {
     # Fetch all projects
     Write-Log "Fetching projects..." -Level "INFO"
-    $list_projects = .\list-projects.ps1 -PAT $PAT -ORGANIZATION_URL $ORGANIZATION_URL
+    $list_projects = & "$PSScriptRoot\list-projects.ps1" -PAT $PAT -ORGANIZATION_URL $ORGANIZATION_URL
     
     if ($null -eq $list_projects -or $list_projects.Count -eq 0) {
         Write-Log "No projects found or failed to fetch projects" -Level "ERROR"
@@ -98,14 +98,14 @@ try {
             # REPOSITORIES
             # ============================================================
             Write-Debug-Log "Collecting repository metrics..."
-            $list_repos = .\list-repos.ps1 -PAT $PAT -ORGANIZATION_URL $ORGANIZATION_URL -PROJECT_NAME $project.name
+            $list_repos = & "$PSScriptRoot\list-repos.ps1" -PAT $PAT -ORGANIZATION_URL $ORGANIZATION_URL -PROJECT_NAME $project.name
             $repoCount = if ($null -eq $list_repos) { 0 } else { $list_repos.Count }
             $add_project | Add-Member -Name "Repositories" -Type NoteProperty -Value $repoCount
             
             # Export individual repository details
             if ($EXPORT_REPOS -and $list_repos.Count -gt 0) {
                 Write-Debug-Log "Exporting $($list_repos.Count) repositories..."
-                .\export-repositories.ps1 `
+                & "$PSScriptRoot\export-repositories.ps1" `
                     -PAT $PAT `
                     -ORGANIZATION_URL $ORGANIZATION_URL `
                     -PROJECT_NAME $project.name `
@@ -120,7 +120,7 @@ try {
                 $pushDates = @()
                 foreach ($repo in $list_repos) {
                     try {
-                        $repo_push = .\latest-push.ps1 `
+                        $repo_push = & "$PSScriptRoot\latest-push.ps1" `
                             -PAT $PAT `
                             -ORGANIZATION_URL $ORGANIZATION_URL `
                             -PROJECT_NAME $project.name `
@@ -146,7 +146,7 @@ try {
             # TFVC
             # ============================================================
             Write-Debug-Log "Collecting TFVC metrics..."
-            $tfvc = .\get-latest-tfvc.ps1 `
+            $tfvc = & "$PSScriptRoot\get-latest-tfvc.ps1" `
                 -PAT $PAT `
                 -ORGANIZATION_URL $ORGANIZATION_URL `
                 -PROJECT_NAME $project.name
